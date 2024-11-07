@@ -2,8 +2,90 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Three.js - OBJLoader com Posição Ajustada e Rotação Fixa</title>
-    <!-- Importmap para Three.js e addons -->
+    <title>Three.js - OBJLoader com Barra de Ferramentas</title>
+    <style>
+        #toolbar {
+            position: fixed;
+            left: 0.1px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #f0f0f0;
+            padding: 1px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            background-color: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            position: relative;
+        }
+
+        .button img {
+            width: 25px;
+            height: 25px;
+        }
+
+        .button:hover {
+            background-color: #d0d0d0;
+            border-radius: 5px;
+        }
+
+        .tooltip {
+            visibility: hidden;
+            width: 50px;
+            background-color: #f8f8f8;
+            color: #000000;
+            text-align: center;
+            padding: 5px;
+            border-radius: 5px;
+            position: absolute;
+            top: 50%;
+            left: 60px;
+            transform: translateY(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1;
+        }
+
+        .button:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra de ferramentas única -->
+    <div id="toolbar">
+        <button class="button" id="panButton">
+            <img src="icons/pan-icon.png" alt="Pan">
+            <div class="tooltip">Pan</div>
+        </button>
+        <button class="button" id="orbitButton">
+            <img src="icons/orbit-icon.png" alt="Orbit">
+            <div class="tooltip">Orbit</div>
+        </button>
+        <button class="button" id="zoomButton">
+            <img src="icons/zoom-icon.png" alt="Zoom Extents">
+            <div class="tooltip">Zoom</div>
+        <button class="button" id="gearButton">
+            <img src="icons/gear-icon.png" alt="gear">
+            <div class="tooltip">General</div>
+            
+        </button>
+    </div>
+
+    <!-- Resto do código Three.js -->
     <script type="importmap">
         {
             "imports": {
@@ -20,34 +102,27 @@
         let camera, scene, renderer, controls, object, axesGroup;
 
         function init() {
-            // Configurar câmera
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.set(-1000, 300, 0); // Posição inicial
-            camera.lookAt(new THREE.Vector3(0, 0, 0)); // Olhar para o centro da cena
+            camera.position.set(-1000, 300, 0);
+            camera.lookAt(new THREE.Vector3(0, 0, 0));
 
-            // Criar a cena
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xffffff); // Fundo branco
+            scene.background = new THREE.Color(0xffffff);
 
-            // Adicionar eixos coloridos e pontilhados
             addDashedAxes();
 
-            // Adicionar luz ambiente suave
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
             scene.add(ambientLight);
 
-            // Adicionar luz direcional para destaque
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
             directionalLight.position.set(2, 2, 2).normalize();
             scene.add(directionalLight);
 
-            // Configurar renderizador com antialiasing e profundidade logarítmica
             renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Configurar os controles de órbita
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.3;
@@ -55,44 +130,36 @@
             controls.maxDistance = 100;
             controls.zoomSpeed = 1.0;
 
-            // Carregar o modelo OBJ e aplicar material transparente com rotação fixa
             loadModel();
 
-            // Ajustar renderização ao redimensionar a janela
             window.addEventListener('resize', onWindowResize);
+            initButtons();
         }
 
         function loadModel() {
             const loader = new OBJLoader();
-            loader.load(
-                './models/ROBO.obj', // Caminho para o modelo OBJ
-                function (obj) {
-                    // Aplicar material transparente azul claro
-                    obj.traverse(function (child) {
-                        if (child.isMesh) {
-                            child.material = new THREE.MeshStandardMaterial({
-                                color: new THREE.Color(0x87CEFA),
-                                transparent: true,
-                                opacity: 0.2,
-                                side: THREE.DoubleSide,
-                                depthWrite: false
-                            });
-                        }
-                    });
+            loader.load('./models/ROBO.obj', function (obj) {
+                obj.traverse(function (child) {
+                    if (child.isMesh) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            color: new THREE.Color(0x87CEFA),
+                            transparent: true,
+                            opacity: 0.2,
+                            side: THREE.DoubleSide,
+                            depthWrite: false
+                        });
+                    }
+                });
 
-                    // Ajustar a rotação conforme necessário
-                    obj.scale.set(1.8, 1.8, 1.8);
-                    obj.rotation.set(0, -0.6, 0);
-                    scene.add(obj);
-                    object = obj;
-                    centerCameraOnObject(obj);
-                    animate();
-                },
-                undefined,
-                function (error) {
-                    console.error('Erro ao carregar o modelo OBJ:', error);
-                }
-            );
+                obj.scale.set(1.8, 1.8, 1.8);
+                obj.rotation.set(0, -0.6, 0);
+                scene.add(obj);
+                object = obj;
+                centerCameraOnObject(obj);
+                animate();
+            }, undefined, function (error) {
+                console.error('Erro ao carregar o modelo OBJ:', error);
+            });
         }
 
         function centerCameraOnObject(obj) {
@@ -103,7 +170,7 @@
             const fov = camera.fov * (Math.PI / 180);
             const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
 
-            camera.position.z = cameraZ * 1.5; // Ajuste de distância da câmera
+            camera.position.z = cameraZ * 1.5;
             camera.lookAt(center);
             controls.target.copy(center);
             controls.update();
@@ -121,13 +188,11 @@
             renderer.render(scene, camera);
         }
 
-        // Função para adicionar eixos com partes sólidas e pontilhadas
         function addDashedAxes() {
             axesGroup = new THREE.Group();
             const colors = { x: 0xff0000, y: 0x00ff00, z: 0x0000ff };
 
             ['x', 'y', 'z'].forEach((axis, i) => {
-                // Linha sólida (de zero para cima)
                 const geometrySolid = new THREE.BufferGeometry().setFromPoints([
                     new THREE.Vector3(0, 0, 0),
                     new THREE.Vector3(i === 0 ? 500 : 0, i === 1 ? 500 : 0, i === 2 ? 500 : 0)
@@ -136,7 +201,6 @@
                 const lineSolid = new THREE.Line(geometrySolid, materialSolid);
                 axesGroup.add(lineSolid);
 
-                // Linha pontilhada (de zero para baixo)
                 const geometryDashed = new THREE.BufferGeometry().setFromPoints([
                     new THREE.Vector3(0, 0, 0),
                     new THREE.Vector3(i === 0 ? -500 : 0, i === 1 ? -500 : 0, i === 2 ? -500 : 0)
@@ -151,14 +215,28 @@
                 axesGroup.add(lineDashed);
             });
 
-            // Rotaciona o grupo para que o eixo Z fique na vertical
             axesGroup.rotation.set(Math.PI / -2, 0, 2.542);
             scene.add(axesGroup);
         }
 
+        function initButtons() {
+            document.getElementById('panButton').addEventListener('click', () => {
+                controls.enablePan = true;
+                controls.enableRotate = false;
+            });
+
+            document.getElementById('orbitButton').addEventListener('click', () => {
+                controls.enableRotate = true;
+                controls.enablePan = false;
+            });
+
+            document.getElementById('zoomButton').addEventListener('click', () => {
+                camera.position.set(0, 0, 100);
+                controls.update();
+            });
+        }
+
         init();
     </script>
-</head>
-<body>
 </body>
 </html>
