@@ -19,7 +19,7 @@
         }
 
         .button {
-            width: 50px;
+            width: 40px;
             height: 50px;
             border: none;
             background-color: transparent;
@@ -28,7 +28,7 @@
             align-items: center;
             justify-content: center;
             border-radius: 5px;
-            position: relative;
+            position: relative; /* Para que a sub-tooltip seja posicionada em relação ao botão */
         }
 
         .button img {
@@ -51,7 +51,7 @@
             border-radius: 5px;
             position: absolute;
             top: 50%;
-            left: 60px;
+            left: 43px;
             transform: translateY(-50%);
             opacity: 0;
             transition: opacity 0.3s;
@@ -61,6 +61,46 @@
         .button:hover .tooltip {
             visibility: visible;
             opacity: 1;
+        }
+
+        .sub-tooltip {
+            visibility: hidden;
+            background-color: #f8f8f8;
+            color: #000000;
+            text-align: center;
+            padding: 5px;
+            border-radius: 5px;
+            position: absolute;
+            top: 5%; /* Posiciona a sub-tooltip abaixo do ícone */
+            left: 220%; /* Centraliza horizontalmente */
+            transform: translateX(-50%); /* Ajusta para ficar exatamente centrado */
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .button:hover .sub-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .sub-options {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Centraliza os textos */
+        }
+
+        .sub-option {
+            padding: 8px;
+            cursor: pointer;
+            width: 100%; /* Garante que o texto esteja centralizado */
+        }
+
+        .sub-option:hover {
+            background-color: #d0d0d0;
         }
     </style>
 </head>
@@ -78,10 +118,15 @@
         <button class="button" id="zoomButton">
             <img src="icons/zoom-icon.png" alt="Zoom Extents">
             <div class="tooltip">Zoom</div>
+        </button>
         <button class="button" id="gearButton">
             <img src="icons/gear-icon.png" alt="gear">
-            <div class="tooltip">General</div>
-            
+            <div class="sub-tooltip">
+                <div class="sub-options">
+                    <div class="sub-option">Perspetiva</div>
+                    <div class="sub-option">Ortogonal</div>
+                </div>
+            </div>
         </button>
     </div>
 
@@ -234,7 +279,30 @@
                 camera.position.set(0, 0, 100);
                 controls.update();
             });
+
+            // Adiciona funcionalidade para as opções de "Perspetiva" e "Ortogonal"
+            document.querySelector('.sub-option:nth-child(1)').addEventListener('click', () => {
+                console.log('Perspetiva selecionada');
+                camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+                controls.object = camera; // Atualiza os controles para a nova câmera
+                controls.update();
+            });
+
+            document.querySelector('.sub-option:nth-child(2)').addEventListener('click', () => {
+                console.log('Ortogonal selecionada');
+                camera = new THREE.OrthographicCamera(
+                    window.innerWidth / -2,
+                    window.innerWidth / 2,
+                    window.innerHeight / 2,
+                    window.innerHeight / -2,
+                    0.1,
+                    2000
+                );
+                controls.object = camera; // Atualiza os controles para a nova câmera
+                controls.update();
+            });
         }
+        
 
         init();
     </script>
