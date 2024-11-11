@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Three.js - OBJLoader com Barra de Ferramentas</title>
+    <style>
+        #toolbar {
+            position: fixed;
+            left: 0.1px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #f0f0f0;
+            padding: 5px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .button {
+            width: 40px;
+            height: 50px;
+            border: none;
+            background-color: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            position: relative; /* Para que a sub-tooltip seja posicionada em relação ao botão */
+        }
+
+        .button img {
+            width: 25px;
+            height: 25px;
+        }
+
+        .button:hover {
+            background-color: #d0d0d0;
+            border-radius: 5px;
+        }
+
+        .tooltip {
+            visibility: hidden;
+            width: 50px;
+            background-color: #f8f8f8;
+            color: #000000;
+            text-align: center;
+            padding: 9px;
+            border-radius: 5px;
+            position: absolute;
+            top: 50%;
+            left: 43px;
+            transform: translateY(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1;
+        }
+
+        .button:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .sub-tooltip {
+            visibility: hidden;
+            background-color: #f8f8f8;
+            color: #000000;
+            text-align: center;
+            padding: 8px;
+            border-radius: 5px;
+            position: absolute;
+            top: 5%; /* Posiciona a sub-tooltip abaixo do ícone */
+            left: 189%; /* Centraliza horizontalmente */
+            transform: translateX(-50%); /* Ajusta para ficar exatamente centrado */
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        #gearButton .sub-tooltip {
+            left: 225%; /* Ajuste este valor conforme necessário para posicionar corretamente */
+        }
+
+        .button:hover .sub-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .sub-options {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Centraliza os textos */
+        }
+
+        .sub-option {
+            padding: 8px;
+            cursor: pointer;
+            width: 100%; /* Garante que o texto esteja centralizado */
+        }
+
+        .sub-option:hover {
+            background-color: #d0d0d0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra de ferramentas única -->
+    <div id="toolbar">
+        <button class="button" id="panButton">
+            <img src="icons/pan-icon.png" alt="Pan">
+            <div class="tooltip">Pan</div>
+        </button>
+        <button class="button" id="orbitButton">
+            <img src="icons/orbit-icon.png" alt="Orbit">
+            <div class="tooltip">Orbit</div>
+        </button>
+        <button class="button" id="zoomButton">
+            <img src="icons/zoom-icon.png" alt="Zoom Extents">
+            <div class="tooltip">Zoom</div>
+        </button>
+
+        <button class="button" id="homeButton">
+            <img src="icons/home-icon.png" alt="Home">
+            <div class="sub-tooltip">
+                <div class="sub-options">
+                    <div class="sub-option" data-view="top">Top</div>
+                    <div class="sub-option" data-view="front">Front</div>
+                    <div class="sub-option" data-view="right">Right</div>
+                    <div class="sub-option" data-view="back">Back</div>
+                    <div class="sub-option" data-view="left">Left</div>
+                </div>
+            </div>
+        </button>
+
+        <button class="button" id="gearButton">
+            <img src="icons/gear-icon.png" alt="gear">
+            <div class="sub-tooltip">
+                <div class="sub-options">
+                    <div class="sub-option">Perspetiva</div>
+                    <div class="sub-option">Ortogonal</div>
+                </div>
+            </div>
+        </button>
+    </div>
+
+        <!-- Resto do código Three.js -->
+        <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.133.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.133.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let camera, scene, renderer, controls, object, axesGroup;
+
+        function init() {
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(-1000, 300, 0);
+            camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff);
+
+            addDashedAxes();
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(2, 2, 2).normalize();
+            scene.add(directionalLight);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.3;
+            controls.minDistance = 1;
+            controls.maxDistance = 100;
+            controls.zoomSpeed = 1.0;
+
+            // Define a configuração inicial dos botões de mouse
+            controls.mouseButtons = {
+                LEFT: THREE.MOUSE.ROTATE,   // Botão esquerdo para órbita
+                MIDDLE: THREE.MOUSE.DOLLY,  // Botão do meio para zoom
+                RIGHT: THREE.MOUSE.PAN      // Botão direito para pan
+            };
+
+            loadModel();
+            window.addEventListener('resize', onWindowResize);
+            initButtons(); // Certifica-te de que isto é chamado no final da função init
+        }
+
+        function loadModel() {
+            const loader = new OBJLoader();
+            loader.load('./models/ROBO.obj', function (obj) {
+                obj.traverse(function (child) {
+                    if (child.isMesh) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            color: new THREE.Color(0x87CEFA),
+                            transparent: true,
+                            opacity: 0.2,
+                            side: THREE.DoubleSide,
+                            depthWrite: false
+                        });
+                    }
+                });
+
+                obj.scale.set(1.8, 1.8, 1.8);
+                obj.rotation.set(0, -0.6, 0);
+                scene.add(obj);
+                object = obj;
+                centerCameraOnObject(obj);
+                animate();
+            }, undefined, function (error) {
+                console.error('Erro ao carregar o modelo OBJ:', error);
+            });
+        }
+
+        function centerCameraOnObject(obj) {
+            const box = new THREE.Box3().setFromObject(obj);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+            const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+
+            camera.position.z = cameraZ * 1.5;
+            camera.lookAt(center);
+            controls.target.copy(center);
+            controls.update();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function addDashedAxes() {
+            axesGroup = new THREE.Group();
+            const colors = { x: 0xff0000, y: 0x00ff00, z: 0x0000ff };
+
+            ['x', 'y', 'z'].forEach((axis, i) => {
+                const geometrySolid = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, 0, 0),
+                    new THREE.Vector3(i === 0 ? 500 : 0, i === 1 ? 500 : 0, i === 2 ? 500 : 0)
+                ]);
+                const materialSolid = new THREE.LineBasicMaterial({ color: colors[axis] });
+                const lineSolid = new THREE.Line(geometrySolid, materialSolid);
+                axesGroup.add(lineSolid);
+
+                const geometryDashed = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, 0, 0),
+                    new THREE.Vector3(i === 0 ? -500 : 0, i === 1 ? -500 : 0, i === 2 ? -500 : 0)
+                ]);
+                const materialDashed = new THREE.LineDashedMaterial({
+                    color: colors[axis],
+                    dashSize: 0.5,
+                    gapSize: 0.5
+                });
+                const lineDashed = new THREE.Line(geometryDashed, materialDashed);
+                lineDashed.computeLineDistances();
+                axesGroup.add(lineDashed);
+            });
+
+            axesGroup.rotation.set(Math.PI / -2, 0, 2.542);
+            scene.add(axesGroup);
+        }
+
+        function initButtons() {
+            document.getElementById('panButton').addEventListener('click', () => {
+                controls.mouseButtons.LEFT = THREE.MOUSE.PAN;   // Botão esquerdo para pan
+                controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE; // Botão direito para órbita
+                console.log('Modo Pan ativado');
+                controls.update();
+            });
+
+            document.getElementById('orbitButton').addEventListener('click', () => {
+                controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE; // Botão esquerdo para órbita
+                controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;   // Botão direito para pan
+                console.log('Modo Órbita ativado');
+                controls.update();
+            });
+
+            document.getElementById('zoomButton').addEventListener('click', () => {
+    if (object) {
+        const box = new THREE.Box3().setFromObject(object);
+        const center = box.getCenter(new THREE.Vector3());
+
+        // Definir valores manuais para a posição da câmara
+        const manualX = -135;  // Altera este valor para ajustar a posição X da câmara
+        const manualY = 45;  // Altera este valor para ajustar a posição Y da câmara
+        const manualZ = 16.5;  // Altera este valor para ajustar a posição Z da câmara
+
+        camera.position.set(manualX, manualY, manualZ);
+        camera.lookAt(center);
+        controls.target.copy(center);
+        controls.update();
+        
+        console.log('Zoom manual aplicado com valores X:', manualX, 'Y:', manualY, 'Z:', manualZ);
+    }
+});
+
+document.querySelectorAll('.sub-option').forEach(option => {
+    option.addEventListener('click', () => {
+        if (object) {
+            const box = new THREE.Box3().setFromObject(object);
+            const center = box.getCenter(new THREE.Vector3());
+
+            // Mudar para câmera ortogonal para as vistas específicas
+            camera = new THREE.OrthographicCamera(
+                window.innerWidth / -10,
+                window.innerWidth / 10,
+                window.innerHeight / 10,
+                window.innerHeight / -10,
+                0.1,
+                2000
+            );
+
+            // Ajustar o zoom para aproximar a câmera
+            camera.zoom = 2; // Aumentar o valor para aproximar mais
+
+            controls.object = camera;
+            controls.update();
+
+            switch (option.dataset.view) {
+    case 'top':
+        camera.position.set(center.x, center.y + 100, center.z);
+        controls.target.set(center.x, center.y, center.z); // Apontar para o centro
+        controls.object.rotation.x = THREE.MathUtils.degToRad(30); // Adiciona rotação de 30 graus no eixo X
+        break;
+    case 'front':
+        camera.position.set(center.x, center.y, center.z + 500);
+        controls.target.set(center.x, center.y, center.z);
+        controls.object.rotation.y = THREE.MathUtils.degToRad(10); // Adiciona rotação de 10 graus no eixo Y
+        break;
+    case 'right':
+        camera.position.set(center.x + 500, center.y, center.z);
+        controls.target.set(center.x, center.y, center.z);
+        controls.object.rotation.y = THREE.MathUtils.degToRad(15); // Adiciona rotação de 15 graus no eixo Y
+        break;
+    case 'back':
+        camera.position.set(center.x, center.y, center.z - 500);
+        controls.target.set(center.x, center.y, center.z);
+        controls.object.rotation.y = THREE.MathUtils.degToRad(-10); // Adiciona rotação de -10 graus no eixo Y
+        break;
+    case 'left':
+        camera.position.set(center.x - 500, center.y, center.z);
+        controls.target.set(center.x, center.y, center.z);
+        controls.object.rotation.y = THREE.MathUtils.degToRad(-15); // Adiciona rotação de -15 graus no eixo Y
+        break;
+}
+
+
+            // Adicionar rotação nos controls
+            controls.object.rotation.order = 'YXZ'; // Define a ordem de rotação para evitar problemas de gimbal lock
+            controls.object.rotation.y += Math.PI; // Rotaciona 180 graus no eixo Y (ajuste conforme necessário)
+
+            camera.lookAt(center);
+            camera.updateProjectionMatrix(); // Atualiza a matriz de projeção após a mudança
+            controls.update();
+            console.log(`Visão ortogonal ${option.dataset.view} aplicada com rotação`);
+        }
+    });
+});
+
+
+
+
+
+        }
+
+        init();
+    </script>
+</body>
+</html>
+    
